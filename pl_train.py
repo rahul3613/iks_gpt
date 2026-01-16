@@ -16,12 +16,14 @@ eta_min = base_lr * 0.1
 
 batch_size = 8
 accumulate_grad_batches = 4
+devices = [2,3]
 
-model_save_steps = 10000 // accumulate_grad_batches
-total_steps = int(3000000 / (batch_size * accumulate_grad_batches))
+optim_step = accumulate_grad_batches * batch_size * len(devices)
+model_save_steps = int(100000 / optim_step)
+total_steps = int(3000000 / optim_step)
 warmup_steps = int(total_steps * 0.01)
 
-print(f"\n{total_steps=}, {warmup_steps=}\n")
+print(f"\n{total_steps=}, {warmup_steps=}, {model_save_steps=}\n")
 
 
 class DharaDataset(Dataset):
@@ -124,7 +126,7 @@ class LitTransf(pl.LightningModule):
 
 checkpoint_cb = ModelCheckpoint(dirpath="pl_models/checkpoints", filename="{step}", save_top_k=-1, every_n_train_steps=model_save_steps)
 
-trainer = pl.Trainer(accelerator="gpu", devices=[2,3], strategy="ddp", precision="bf16-mixed", logger=True, log_every_n_steps=10, default_root_dir="pl_models", callbacks=[checkpoint_cb], accumulate_grad_batches=accumulate_grad_batches, gradient_clip_val=1.0)
+trainer = pl.Trainer(accelerator="gpu", devices=devices, strategy="ddp", precision="bf16-mixed", logger=True, log_every_n_steps=10, default_root_dir="pl_models", callbacks=[checkpoint_cb], accumulate_grad_batches=accumulate_grad_batches, gradient_clip_val=1.0)
 
 model = LitTransf(model_config, base_lr=base_lr, eta_min=eta_min, total_steps=total_steps, warmup_steps=warmup_steps)
 
