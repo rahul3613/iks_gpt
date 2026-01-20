@@ -26,10 +26,10 @@ Scripts for loading the checkpoints for inference and testing. With options for 
 ### Training
 ```bash
 # Standard training
-python train.py
+python -m old_scripts.train
 
 # Fine-tuning pre-trained model
-python ft_train.py
+python -m old_scripts.ft_train
 ```
 
 ### Inference

@@ -23,11 +23,11 @@ from torch.utils.data import DataLoader, Dataset
 
 
 device = "cuda:3"
-save_path = "../models"
-data_path = "../../data/"
+save_path = "models"
+data_path = "../data/"
 
 max_seq_len = model_config["max_seq_len"]
-batch_size = 8
+batch_size = 2
 model_save_step = 10000
 plot_save_step = 100
 loss_upd_step = 10
@@ -59,9 +59,9 @@ class DharaDataset(Dataset):
         self.word_prob = word_prob
         self.chunk_prob = chunk_prob
         
-        self.verse_tokens = np.memmap("../../data/verse_train_tokens.bin", dtype=np.uint16, mode="r")
-        self.word_tokens = np.memmap("../../data/word_train_tokens.bin", dtype=np.uint16, mode="r")
-        self.chunk_tokens = np.memmap("../../data/chunk_train_tokens.bin", dtype=np.uint16, mode="r")
+        self.verse_tokens = np.memmap("../data/verse_train_tokens.bin", dtype=np.uint16, mode="r")
+        self.word_tokens = np.memmap("../data/word_train_tokens.bin", dtype=np.uint16, mode="r")
+        self.chunk_tokens = np.memmap("../data/chunk_train_tokens.bin", dtype=np.uint16, mode="r")
         
         
     def __len__(self):
