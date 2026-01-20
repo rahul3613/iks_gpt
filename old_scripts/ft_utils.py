@@ -95,10 +95,10 @@ def add_noise(text, noise_add_prob=1.0, char_shuff_prob=0.01, word_drop_prob=0.0
     return "".join(out)
 
 
-data_path="../ft_data/"
+data_path="../../ft_data/"
 
 
-def get_train_ids(data_path="../ft_data/"):
+def get_train_ids(data_path=data_path):
     with open(f"{data_path}verse/sampled_ids.json", "r") as f:
         verse_ids = json.load(f)
         
@@ -132,7 +132,7 @@ def format_qna(question, answer):
     return "<user>" + add_noise(question) + "<system>" + answer + "<eos>"
 
 
-def get_verse_data(id, data_path="../ft_data/"):
+def get_verse_data(id, data_path=data_path):
     id = id[2:]
     
     with open(f"{data_path}verse/{id}.json", "r") as f:
@@ -141,7 +141,7 @@ def get_verse_data(id, data_path="../ft_data/"):
     return format_qna(data['question'], data['answer'])
         
 
-def get_word_data(id, data_path="../ft_data/"):
+def get_word_data(id, data_path=data_path):
     id = id[2:]
     
     with open(f"{data_path}/word/{id}.json", "r") as f:
@@ -150,7 +150,7 @@ def get_word_data(id, data_path="../ft_data/"):
     return format_qna(data['question'], data['answer'])
 
 
-def get_chunk_data(id, data_path="../ft_data/"):
+def get_chunk_data(id, data_path=data_path):
     id = id[2:]
     
     with open(f"{data_path}/chunk/{id}.json", "r") as f:

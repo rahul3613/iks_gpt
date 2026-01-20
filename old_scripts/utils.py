@@ -97,12 +97,12 @@ def add_noise(text, noise_add_prob=0.1, char_shuff_prob=0.005, word_drop_prob=0.
     return "".join(out)
 
 
-data_path="../data/"
+data_path="../../data/"
 
 with open(f"{data_path}chunk_data/test_ids.json", "r") as f:
     test_chunk_ids = json.load(f)
 
-def get_train_ids(data_path="../data/"):
+def get_train_ids(data_path=data_path):
     with open(f"{data_path}verse_data/train_ids.json", "r") as f:
         verse_ids = json.load(f)
         
@@ -151,7 +151,7 @@ def get_train_ids(data_path="../data/"):
     return all_ids
         
 
-def get_verse_data(id, data_path="../data/"):
+def get_verse_data(id, data_path=data_path):
     id = id[2:]
     
     with open(f"{data_path}verse_data/{id}.json", "r") as f:
@@ -180,7 +180,7 @@ def get_verse_data(id, data_path="../data/"):
     return text[:5000]
 
 
-def get_word_data(id, data_path="../data/"):
+def get_word_data(id, data_path=data_path):
     id = id[2:]
     
     with open(f"{data_path}/word_data/{id}.json", "r") as f:
@@ -204,7 +204,7 @@ def get_word_data(id, data_path="../data/"):
     return text[:5000]
 
 
-def get_chunk_data(id, data_path="../data/"):
+def get_chunk_data(id, data_path=data_path):
     id = id[2:]
     
     with open(f"{data_path}/chunk_data/{id}.json", "r") as f:

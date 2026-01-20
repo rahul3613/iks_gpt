@@ -12,8 +12,8 @@ from torch.utils.data import DataLoader, Dataset
 
 
 device = "cuda:2"
-save_path = "ft_models"
-pt_model_path = "models/epoch_1_step_150000.pth"
+save_path = "../ft_models"
+pt_model_path = "../models/epoch_1_step_150000.pth"
 
 max_seq_len = model_config["max_seq_len"]
 batch_size = 10

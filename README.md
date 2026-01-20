@@ -32,11 +32,6 @@ A GPT-like transformer model built from scratch for generating and understanding
 
 ### Training Scripts
 
-- **`train.py`**: Standard PyTorch training implementation
-  - Trains on mixed data sources (verses, words, chunks) with configurable probabilities
-  - Implements cosine annealing learning rate schedule with warmup
-  - Model checkpoints saved in `models/` directory
-
 - **`pl_train.py`**: PyTorch Lightning training implementation
   - Distributed training support with PyTorch Lightning
   - Checkpoint management and logging using Lightning callbacks
@@ -51,7 +46,6 @@ A GPT-like transformer model built from scratch for generating and understanding
 
 Scripts for loading the checkpoints for inference and testing. With options for setting parameters like temperature, Top-p (nucleus) and Repetition penalty
 - **`pl_test.py`**: Text generation script for the model trained using PyTorch Lightning.
-- **`test.ipynb`**: Jupyter notebook for using the model trained using the standard PyTorch script.
 - **`ft_test.ipynb`**: Jupyter notebook for testing the answer generation for questions using the finetuned models.
 
 ### Tokenization & Utilities
@@ -78,7 +72,10 @@ Scripts for loading the checkpoints for inference and testing. With options for 
     text = decode(tokens)
     ```
 
-- **`utils.py`**, **`ft_utils.py`** : Utility functions for training and finetuning the model with functions like `aks_translit()`, `shuff_drop()`, and `add_noise()`
+- **`utils.py`**, **`ft_utils.py`**, **`val_utils.py`** : Utility functions for training, validation and finetuning the model with functions like `aks_translit()`, `shuff_drop()`, and `add_noise()`
+
+### [old_scripts](old_scripts): Previous versions of the training and testing scripts.
+
 
 
 ## Datasets
@@ -91,25 +88,14 @@ Scripts for loading the checkpoints for inference and testing. With options for 
 
 ### Training
 ```bash
-# Standard training
-python train.py
-
 # PyTorch Lightning training
 python pl_train.py
-
-# Fine-tuning pre-trained model
-python ft_train.py
 ```
 
 ### Inference
 ```bash
 # Generate text from seed
 python pl_test.py
-
-test.ipynb
-
-# Notebook for question answering
-ft_test.ipynb
 ```
 ### Sample Question Answering
 ```python

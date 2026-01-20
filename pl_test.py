@@ -7,7 +7,7 @@ from pl_train import LitTransf
 device = "cuda:3"
 
 model = LitTransf.load_from_checkpoint(
-    "pl_models/checkpoints/step_step=4000.ckpt",
+    "pl_models/checkpoints/step=100000.ckpt",
     model_config=model_config,
     map_location=device,
 )
@@ -42,7 +42,7 @@ def top_p_filter(probs, p):
     return filtered_probs
 
 
-def generate(text, max_gen_len=128, temp=0.3, top_p=0.9, repet_penalty=1.2):
+def generate(text, max_gen_len=128, temp=0.4, top_p=0.9, repet_penalty=1.2):
 
     inp_tokens = encode(text)
     gen_tokens = []
@@ -73,11 +73,13 @@ def generate(text, max_gen_len=128, temp=0.3, top_p=0.9, repet_penalty=1.2):
     return decode(gen_tokens)
 
 
-text = '''sita the daughter of'''
+text = '''english word:
+dharma
 
-
+word:
+'''
 print(text, end="")
 
-op = generate(text)
-
-# print("\n\n", "- "*20, "\n\n", op)
+while text != "q":
+    op = generate(text)
+    text = input("\n\nQuery:\n")
