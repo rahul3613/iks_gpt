@@ -2,7 +2,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import math
+from tokenizer.tokenizer import encode
 
+eos_id = encode("<eos>")[0]
 
 class SelfAttn(nn.Module):
     def __init__(self, embd_dim, head_dim):
@@ -90,12 +92,34 @@ class TransfBlock(nn.Module):
         return out
     
     
+def get_mask(x):
+    seq_len = x.shape[-1]
+    
+    mask = torch.zeros((x.shape[0], seq_len, seq_len), device=x.device)
+
+    for i in range(x.shape[0]):
+        eos_indexes = (torch.where(x[i] == eos_id)[0] + 1).tolist()
+        prev_index = 0
+        if (not eos_indexes) or (eos_indexes[-1] != seq_len):
+            eos_indexes.append(seq_len)
+
+        for index in eos_indexes:
+            index_len = index - prev_index
+            curr_mask = torch.tril(torch.ones(index_len, index_len))
+            mask[i, prev_index:prev_index + index_len, prev_index:prev_index + index_len] = curr_mask
+            
+            prev_index = index
+                    
+    return mask
+    
     
 class TasnsfModel(nn.Module):
-    def __init__(self, vocab_size, max_seq_len, embd_dim, num_head, num_layers, tie_embeddings=False):
+    def __init__(self, vocab_size, max_seq_len, embd_dim, num_head, num_layers, doc_masking=False, tie_embeddings=False):
         super(TasnsfModel, self).__init__()
         
+        self.doc_masking = doc_masking
         self.embd_dim = embd_dim
+        
         self.embedding = nn.Embedding(vocab_size, embd_dim)
         self.pos_embd = nn.Embedding(max_seq_len, embd_dim)
         
@@ -112,7 +136,11 @@ class TasnsfModel(nn.Module):
         
         seq_len = x.shape[-1]
         positions = torch.arange(seq_len, device=x.device)  # -> (seq_len)
-        mask = torch.tril(torch.ones(seq_len, seq_len, device=x.device)).unsqueeze(0) # Lower triangular matrix with -> (seq_len, seq_len) -> (1, seq_len, seq_len)
+        
+        if self.doc_masking:
+            mask = get_mask(x)
+        else:
+            mask = torch.tril(torch.ones(seq_len, seq_len, device=x.device)).unsqueeze(0) # Lower triangular matrix with -> (seq_len, seq_len) -> (1, seq_len, seq_len)
         
         pos_embd = self.pos_embd(positions).unsqueeze(0)        # (seq_len)  ->  (seq_len, embd_dim)  ->  (1, seq_len, embd_dim)
         x = self.embedding(x) + pos_embd        # (batch, seq_len)  ->  (batch, seq_len, embd_dim)

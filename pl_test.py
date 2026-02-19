@@ -2,12 +2,12 @@ from tokenizer.tokenizer import encode, decode
 import torch
 import time
 from model_config import model_config
-from pl_train import LitTransf
+from pl_ft_train import LitTransf
 
 device = "cuda:3"
 
 model = LitTransf.load_from_checkpoint(
-    "pl_models/checkpoints/step=100000.ckpt",
+    "pl_ft_models/checkpoints/epoch=9.ckpt",
     model_config=model_config,
     map_location=device,
 )
@@ -73,13 +73,12 @@ def generate(text, max_gen_len=128, temp=0.4, top_p=0.9, repet_penalty=1.2):
     return decode(gen_tokens)
 
 
-text = '''english word:
-dharma
+question = '''who killed ravana in ramayana?'''
 
-word:
-'''
-print(text, end="")
 
-while text != "q":
-    op = generate(text)
-    text = input("\n\nQuery:\n")
+print(question, end="")
+
+while question != "q":
+    prompt = "<user>" + question + "<system>"
+    op = generate(prompt)
+    question = input("\n\nQuery:\n")

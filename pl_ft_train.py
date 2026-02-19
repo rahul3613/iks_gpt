@@ -12,9 +12,12 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 
 # Val
 from tokenizer.tokenizer import encode
-from val_utils import get_eval_ids, get_verse_data, get_chunk_data, get_word_data
+# from val_utils import get_eval_ids, get_verse_data, get_chunk_data, get_word_data
+from ft_utils import get_train_ids, get_val_ids, get_verse_data, get_chunk_data, get_word_data
 
+ckpt_path = "pl_models/checkpoints_v4/step=90000.ckpt"
 
+sys_id = encode("<system>")[0]
 pad_id = encode("<pad>")[0]
 max_seq_len = model_config["max_seq_len"]
 base_lr = 1e-4
@@ -37,54 +40,8 @@ print(f"\n{training_tokens=}, {training_points=}, {total_steps=}, {warmup_steps=
 # Train
 
 class DharaDataset(Dataset):
-    def __init__(self, training_points, verse_prob=0.4, word_prob=0.3, chunk_prob=0.3):
-        
-        self.training_points = training_points
-        
-        self.verse_prob = verse_prob
-        self.word_prob = word_prob
-        self.chunk_prob = chunk_prob
-        
-        self.verse_tokens = np.memmap("../data/verse_train_tokens.bin", dtype=np.uint16, mode="r")
-        self.word_tokens = np.memmap("../data/word_train_tokens.bin", dtype=np.uint16, mode="r")
-        self.chunk_tokens = np.memmap("../data/chunk_train_tokens.bin", dtype=np.uint16, mode="r")
-        
-        
-    def __len__(self):
-        return self.training_points
-    
-    
-    def _sample_window(self, tokens):
-        start = np.random.randint(0, len(tokens) - max_seq_len - 1)
-        x = tokens[start : start + max_seq_len]
-        return torch.tensor(x, dtype=torch.long)
-    
-    
-    def __getitem__(self, index):
-
-        r = np.random.rand()
-        
-        if r < self.verse_prob:
-            return self._sample_window(self.verse_tokens)
-        elif r < self.verse_prob + self.word_prob:
-            return self._sample_window(self.word_tokens)
-        else:
-            return self._sample_window(self.chunk_tokens)
-        
-    
-def collate_fn(batch):
-    return torch.stack(batch)
-
-
-dataset = DharaDataset(training_points, verse_prob=0.5, word_prob=0.35, chunk_prob=0.15)
-loader = DataLoader(dataset, collate_fn=collate_fn, batch_size=batch_size, num_workers=2, pin_memory=True, persistent_workers=True, prefetch_factor=2)
-
-
-# Val
-
-class ValDataset(Dataset):
     def __init__(self):        
-        self.all_ids = get_eval_ids()
+        self.all_ids = get_train_ids()
         
         
     def __len__(self):
@@ -106,9 +63,9 @@ class ValDataset(Dataset):
         
         tokens = encode(text)
         return torch.tensor(tokens, dtype=torch.long)
-
-
-def val_collate_fn(batch):
+    
+    
+def collate_fn(batch):
     lengths = [len(b) for b in batch]
     max_len = min(max(lengths), max_seq_len)
     
@@ -117,17 +74,46 @@ def val_collate_fn(batch):
         if len(b) < max_len:
             b = torch.cat([b, torch.full((max_len - len(b),), pad_id)])
         else:
-            if random.random() < 0.9:
-                b = b[:max_len]
-            else:
-                b = b[-max_len:]
+            b = b[:max_len]
         padded.append(b)
             
     return torch.stack(padded)
 
 
+dataset = DharaDataset()
+loader = DataLoader(dataset, collate_fn=collate_fn, batch_size=batch_size, num_workers=15, pin_memory=True, persistent_workers=True, prefetch_factor=10)
+
+
+# Val
+
+class ValDataset(Dataset):
+    def __init__(self):        
+        self.all_ids = get_val_ids()
+        
+        
+    def __len__(self):
+        return len(self.all_ids)
+    
+    
+    def __getitem__(self, index):
+
+        id = self.all_ids[index]
+        
+        if id.startswith("v"):
+            text = get_verse_data(id, "../ft_val_data/")
+        
+        if id.startswith("w"):
+            text = get_word_data(id, "../ft_val_data/")
+        
+        if id.startswith("c"):
+            text = get_chunk_data(id, "../ft_val_data/")
+        
+        tokens = encode(text)
+        return torch.tensor(tokens, dtype=torch.long)
+
+
 val_dataset = ValDataset()
-val_loader = DataLoader(val_dataset, collate_fn=val_collate_fn, batch_size=batch_size, shuffle=False, num_workers=15, pin_memory=True, persistent_workers=True, prefetch_factor=10)
+val_loader = DataLoader(val_dataset, collate_fn=collate_fn, batch_size=batch_size, shuffle=False, num_workers=15, pin_memory=True, persistent_workers=True, prefetch_factor=10)
 
 
 
@@ -151,6 +137,16 @@ class LitTransf(pl.LightningModule):
         x = batch
         
         logits = self(x)
+        
+        targets = x.clone()
+        for i in range(x.size(0)):
+            sys_pos = (x[i] == sys_id).nonzero(as_tuple=True)[0]
+            if len(sys_pos) > 0:
+                ans_start = sys_pos[0] + 1
+                targets[i, :ans_start] = pad_id
+            else:
+                targets[i, :] = pad_id
+        
         logits = logits[:, :-1, :]
         
         targets = x[:, 1:]
@@ -173,11 +169,8 @@ class LitTransf(pl.LightningModule):
             if current_step < self.hparams.warmup_steps:
                 return current_step / max(1, self.hparams.warmup_steps)
             
-            if current_step > self.hparams.total_steps:
-                return self.hparams.eta_min / self.hparams.base_lr
-
-            progress = (current_step - self.hparams.warmup_steps) / max(1, (self.hparams.total_steps - self.hparams.warmup_steps))
-            return max((self.hparams.eta_min / self.hparams.base_lr), 0.5 * (1.0 + math.cos(progress * math.pi)))
+            return 1.0
+            
 
         scheduler = {
             "scheduler": torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda),
@@ -191,6 +184,15 @@ class LitTransf(pl.LightningModule):
         x = batch
         
         logits = self(x)
+        
+        targets = x.clone()
+        for i in range(x.size(0)):
+            sys_pos = (x[i] == sys_id).nonzero(as_tuple=True)[0]
+            if len(sys_pos) > 0:
+                ans_start = sys_pos[0] + 1
+                targets[i, :ans_start] = pad_id
+            else:
+                targets[i, :] = pad_id
         
         targets = x[:, 1:]
         logits = logits[:, :-1, :]
@@ -215,7 +217,6 @@ class LitTransf(pl.LightningModule):
 
         avg_val_loss = val_loss_sum / val_batches
 
-        # self.log("val_loss", avg_val_loss, prog_bar=True, sync_dist=False)
         self.logger.experiment.add_scalar("val_loss_step", avg_val_loss, self.trainer.global_step)
 
         self.val_loss_sum = torch.tensor(0.0, device=self.device)
@@ -224,12 +225,12 @@ class LitTransf(pl.LightningModule):
         
 
 
-checkpoint_cb = ModelCheckpoint(dirpath="pl_models/checkpoints", 
-                                filename="{step}", 
+checkpoint_cb = ModelCheckpoint(dirpath="pl_ft_models/checkpoints", 
+                                filename="{epoch}", 
                                 # monitor="val_loss", 
                                 # mode="min",
-                                save_top_k=-1, 
-                                every_n_train_steps=model_save_steps,
+                                save_top_k=-1,
+                                every_n_epochs=1,
                                 save_on_train_epoch_end=True
                                 )
 
@@ -239,13 +240,14 @@ trainer = pl.Trainer(accelerator="gpu",
                      precision="bf16-mixed", 
                      logger=True, 
                      log_every_n_steps=10, 
-                     default_root_dir="pl_models", 
+                     default_root_dir="pl_ft_models", 
                      callbacks=[checkpoint_cb], 
                      accumulate_grad_batches=accumulate_grad_batches, 
                      gradient_clip_val=1.0,
-                     val_check_interval=model_save_steps * accumulate_grad_batches
+                     val_check_interval=1.0
                      )
 
-model = LitTransf(model_config, base_lr=base_lr, eta_min=eta_min, total_steps=total_steps, warmup_steps=warmup_steps)
+model = LitTransf.load_from_checkpoint(ckpt_path, model_config=model_config, base_lr=5e-6, eta_min=5e-6, total_steps=None, warmup_steps=int(len(dataset) / optim_step))
+
 
 trainer.fit(model, loader, val_loader)

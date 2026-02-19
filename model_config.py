@@ -4,5 +4,6 @@ model_config = {
     "embd_dim": 1024,
     "num_head": 16,
     "num_layers": 15,
+    "doc_masking": True,
     "tie_embeddings": False
 }
